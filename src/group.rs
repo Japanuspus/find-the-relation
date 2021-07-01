@@ -1,9 +1,6 @@
 use crate::algebra::{evaluate_polynomial, Matrix};
-use wasm_bindgen::prelude::*;
 use num::complex::Complex;
 
-#[repr(u8)]
-#[wasm_bindgen]
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Direction {
     North,
