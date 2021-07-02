@@ -3,10 +3,11 @@ mod group;
 mod level;
 
 use std::f64::consts::PI;
-
 use num::Complex;
 
-pub use crate::level::Level;
+pub use crate::algebra::Matrix;
+pub use crate::level::{Level, LeafState};
+pub use crate::group::{Direction, Group};
 
 pub struct Game {
     pub levels: Vec<Level>,
@@ -26,10 +27,4 @@ impl Game {
         levels.push(Level::new(vec![Complex::new(3.0, 0.0)]));
         Game { levels }
     }
-}
-
-impl Default for Game {   
-    fn default() -> Self {
-        Self::new()       
-    }                     
 }

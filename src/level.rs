@@ -1,73 +1,82 @@
-use crate::group::{Direction, Group};
+use std::rc::Rc;
+
+use crate::group::{Group, Direction};
+use crate::algebra::{Matrix};
 use num::Complex;
+
+pub struct Move {
+    direction: Direction,
+    parent: Option<Rc<Move>>,
+    generation: usize,
+}
+
+pub struct LeafState {
+    pub state: Vec<Matrix>,
+    last_move: Rc<Move>,
+}
 
 pub struct Level {
     pub qs: Vec<Complex<f64>>,
     pub groups: Vec<Group>,
-    pub word: Vec<Direction>,
-    pub flattened: Vec<[Complex<f64>; 9]>
+}
+
+fn make_leaf_child(leaf: &LeafState, direction: Direction, groups: &Vec<Group>) -> LeafState {
+    let state = groups.iter().zip(leaf.state.iter()).map(|(g, s)| g.apply(s, direction)).collect();
+    let last_move = Rc::new(Move {
+        direction,
+        parent: Some(leaf.last_move.clone()),
+        generation: leaf.last_move.generation + 1,
+    });
+    LeafState{state, last_move}                
 }
 
 impl Level {
     pub fn new(qs: Vec<Complex<f64>>) -> Level {
-        let groups: Vec<Group> = Self::make_groups(&qs);
-        let flattened = groups.iter().map(
-            |g| g.flatten()).collect();
-        let word = vec![];
-        Level {
-            qs,
-            groups,
-            word,
-            flattened
-        }
+        let groups = qs.iter().map(Group::new).collect();
+        Level {qs, groups}
     }
 
-    fn make_groups(qs: &[Complex<f64>]) -> Vec<Group> {
-        qs.iter().map(Group::new).collect()
+    pub fn og(&self) -> impl Iterator<Item=LeafState> + '_{
+        Direction::iter().map(move |direction| LeafState {
+            state: self.groups.iter().map(|g| g.apply(&g.identity, direction)).collect(),
+            last_move: Rc::new(Move{direction, parent: None, generation: 1}),
+        })
     }
 
-    pub fn push(&mut self, direction: Direction) {
-        for i in 0..self.groups.len() {
-            self.groups[i].push(&direction);
-        }
-        let last_is_opposite = !self.word.is_empty() &&
-            self.word.last().unwrap() == &match direction {
-            Direction::North => Direction::South,
-            Direction::South => Direction::North,
-            Direction::East => Direction::West,
-            Direction::West => Direction::East
-        };
-        if last_is_opposite {
-            self.word.pop();
-        } else {
-            self.word.push(direction);
-        }
-        self.update_flattened();
+    pub fn get_child(&self, leaf: &LeafState, direction: Direction) -> LeafState {
+        make_leaf_child(leaf, direction, &self.groups)
     }
 
-    pub fn reset(&mut self) {
-        self.groups = Self::make_groups(&self.qs);
-        self.word = vec![];
-        self.update_flattened();
-    }
-
-    fn update_flattened(&mut self) {
-        self.flattened = self.groups.iter().map(|g| g.flatten()).collect();
-    }
-
-    pub fn word(&self) -> String {
-        self.word.iter().map(|d| match d {
-            Direction::North => 'N',
-            Direction::South => 'S',
-            Direction::East => 'E',
-            Direction::West => 'W',
-        }).collect::<String>()
-    }
-
-    pub fn is_solved(&self) -> bool {
-        !self.word.is_empty() && self.groups.iter().all(|g| g.current_is_identity())
+    pub fn get_children<'a>(&'a self, leaf: &'a LeafState) -> impl Iterator<Item=LeafState> + 'a {
+        let d0 = leaf.last_move.direction;
+        Direction::iter().filter_map(move |direction| {
+            if direction.is_opposite(d0) {None} else {Some(self.get_child(leaf, direction))}
+        })
     }
 }
+
+impl LeafState {
+    pub fn recipe(&self) -> Vec<Direction> {
+        let mut res = Vec::new();
+        let mut next_move = &Some(self.last_move.clone());
+        while let Some(m) = next_move {
+            res.push(m.direction);
+            next_move = &m.parent;
+        }
+        res.reverse();
+        res
+    }
+
+    pub fn is_solution(&self) -> bool {
+        self.state.iter().all(|m| m.is_identity())
+    }
+
+    pub fn length(&self) -> usize {
+        self.last_move.generation
+    }
+}
+
+/*
 
 #[cfg(test)]
 mod tests {
@@ -126,3 +135,4 @@ mod tests {
         assert!(level.is_solved());
     }
 }
+*/

@@ -52,15 +52,23 @@ impl Matrix {
         res
     }
 
-    pub fn distance_from_identity(&self) -> f64 {
+    pub fn distance2_from_identity(&self) -> f64 {
         let mut norm_square = 0.0;
         for i in 0..3 {
             for j in 0..3 {
                 let target = Complex::new(if j == i { 1.0 } else { 0.0 }, 0.0);
                 norm_square += (self.d[i][j] - target).norm_sqr()
             }
-        }
-        norm_square.sqrt()
+        };
+        norm_square
+    }
+
+    pub fn distance_from_identity(&self) -> f64 {
+        self.distance2_from_identity().sqrt()
+    }
+
+    pub fn is_identity(&self) -> bool {
+        self.distance_from_identity() < 1e-10
     }
 
     pub fn flatten(&self) -> [Complex<f64>; 9] {

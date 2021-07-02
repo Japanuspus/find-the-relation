@@ -1,12 +1,41 @@
+use std::fmt::Write;
+
 use crate::algebra::{evaluate_polynomial, Matrix};
 use num::complex::Complex;
 
-#[derive(PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub enum Direction {
     North,
     South,
     East,
-    West
+    West,
+}
+
+impl Direction {
+    pub fn is_opposite(&self, other: Direction) -> bool {
+        match (self, other) {
+            (Direction::North, Direction::South) => true,
+            (Direction::South, Direction::North) => true,
+            (Direction::East, Direction::West) => true,
+            (Direction::West, Direction::East) => true,
+            _ => false,
+        }
+    }
+
+    pub fn iter() -> impl Iterator<Item = Direction> {
+        [Direction::North, Direction::South, Direction::East, Direction::West].iter().copied()
+    }
+}
+
+impl std::fmt::Display for Direction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_char(match self {
+            Direction::North => 'N',
+            Direction::South => 'S',
+            Direction::East => 'E',
+            Direction::West => 'W',
+        })
+    }
 }
 
 pub struct Group {
@@ -14,7 +43,7 @@ pub struct Group {
     south_matrix: Matrix,
     east_matrix: Matrix,
     west_matrix: Matrix,
-    current_matrix: Matrix
+    pub identity: Matrix,
 }
 
 impl Group {
@@ -48,30 +77,24 @@ impl Group {
         west_matrix.d[2][1] = evaluate_polynomial(&[(-1, 1)], &q);
         west_matrix.d[2][2] = evaluate_polynomial(&[(-1, -1)], &q);
 
-        let current_matrix = Matrix::identity();
-        Self { north_matrix, south_matrix, east_matrix, west_matrix, current_matrix }
+        Self { north_matrix, south_matrix, east_matrix, west_matrix, identity: Matrix::identity()}
     }
 
-    pub fn push(&mut self, direction: &Direction) {
-        let matrix = match direction {
+    pub fn get(&self, direction: Direction) -> &Matrix {
+        match direction {
             Direction::North => &self.north_matrix,
             Direction::South => &self.south_matrix,
             Direction::East => &self.east_matrix,
             Direction::West => &self.west_matrix
-        };
-        self.current_matrix = &self.current_matrix * matrix;
+        }
     }
 
-    pub fn current_is_identity(&self) -> bool {
-        self.current_matrix == Matrix::identity()
+    pub fn apply(&self, state: &Matrix, direction: Direction) -> Matrix {
+        state * self.get(direction)
     }
 
-    pub fn distance_from_identity(&self) -> f64 {
-        self.current_matrix.distance_from_identity()
-    }
-
-    pub fn flatten(&self) -> [Complex<f64>; 9] {
-        self.current_matrix.flatten()
+    pub fn is_identity(&self, state: &Matrix) -> bool {
+        state == &self.identity
     }
 }
 
@@ -82,19 +105,22 @@ mod tests {
 
     #[test]
     fn group_starts_at_identity() {
-        let q = Complex::new(60.0, 42.0);
-        let group = Group::new(&q);
-        assert!(group.current_is_identity());
+        // let q = Complex::new(60.0, 42.0);
+        // let group = Group::new(&q);
+        let state = Matrix::identity();
+        assert!(state.is_identity())
     }
 
     #[test]
     fn group_moves_to_non_identity() {
         let q = Complex::new(60.0, 42.0);
-        let mut group = Group::new(&q);
-        group.push(&Direction::North);
-        assert!(!group.current_is_identity());
+        let group = Group::new(&q);
+        let mut state = Matrix::identity();
+        state = group.apply(&state, Direction::North);
+        assert!(!state.is_identity());
     }
 
+    /*
     #[test]
     fn pushing_north_moves_north() {
         let q = Complex::new(60.0, 42.0);
@@ -138,4 +164,5 @@ mod tests {
         group.push(&Direction::East);
         assert_eq!(group.current_matrix, Matrix::identity());
     }
+    */
 }
