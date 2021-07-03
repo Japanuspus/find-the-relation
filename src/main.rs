@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
 use std::io::Write;
+use std::iter::repeat_with;
 
-use find_the_relation::{Game, Level, LeafState, Direction};
+use find_the_relation::{Matrix, Group, Game, Level, LeafState, Direction};
 
 
 type Solution = Vec<Direction>;
@@ -75,7 +76,7 @@ struct SortableLeafState {
 
 fn error_measure(l: &LeafState) -> f64 {
     let dist = l.state.iter().map(|m| m.distance2_from_identity()).sum::<f64>();
-    let infidelity = dist + l.length() as f64;
+    let infidelity = dist.sqrt() + l.length() as f64;
     -1.0 * infidelity
 }
 
@@ -122,10 +123,53 @@ fn solve2(level: &Level) {
     println!("");
 }
 
+struct Step {
+    state: Matrix,
+    direction_index: i8,
+    distance2: f64,
+}
+
+fn solve_vec(g:&Group, n: usize) {
+    let mut v: Vec<Step> = repeat_with(|| Step{state: Matrix::identity(), direction_index: -1, distance2: 0.0}).take(n+1).collect();
+    let mut m: usize = 1;
+    let m_max: usize = n;
+    while m>0 {
+        let mut d= v[m].direction_index+1;
+        if (d+2)%4 == v[m-1].direction_index {
+            d+=1;
+        }
+        if d>3 {
+            m-=1;
+            continue
+        }
+        if m<3 {
+            println!("Level {} direction {}", m, d);
+        }
+        v[m].direction_index = d;
+        v[m].state = g.apply(&v[m-1].state, Direction::by_index(d));
+        if v[m].state.is_identity() {break;}
+        if m<m_max {
+            v[m+1].direction_index = -1;
+            m+=1;
+        }
+    }
+    if m>0 {
+        let solution: Vec<Direction> = v.iter().skip(1).map(|s| Direction::by_index(s.direction_index)).take(m).collect();
+        println!("Solution len {}: {}", m, solution_as_str(&solution));
+    } else {
+        println!("No solution at n: {}", n);
+    }
+}
 fn main() {
     let game=Game::new();
     for (i, level) in game.levels.iter().enumerate() {
         println!("Level: {}", i);
-        solve2(level);
+        if level.groups.len()==1 {
+            println!("Vector solve");
+            solve_vec(&level.groups[0], 32);
+        } else {
+            println!("skipping");
+            //solve2(level);
+        }
     }
 }

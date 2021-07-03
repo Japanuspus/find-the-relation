@@ -25,6 +25,16 @@ impl Direction {
     pub fn iter() -> impl Iterator<Item = Direction> {
         [Direction::North, Direction::South, Direction::East, Direction::West].iter().copied()
     }
+
+    pub fn by_index(i: i8) -> Self {
+        match i.rem_euclid(4) {
+            0 => Direction::North,
+            1 => Direction::East,
+            2 => Direction::South,
+            3 => Direction::West,
+            _ => panic!(),
+        }
+    }
 }
 
 impl std::fmt::Display for Direction {
